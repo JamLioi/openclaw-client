@@ -67,7 +67,7 @@ jobs:
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
-        if: github.event_name == 'pull_request'
+        if: always()
         with:
           name: installers-${{ matrix.platform }}
           path: |
