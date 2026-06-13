@@ -53,41 +53,34 @@ async fn stream_chat_message(
     let client = reqwest::Client::new();
     let url = format!("http://{}:{}/v1/chat/completions", config.host, config.port);
     
-    eprintln!("[HTTP] POST {}:{} -> {}", config.host, config.port, url);
+    // Force non-streaming for reliability
+    let mut req = request.clone();
+    req.stream = false;
+    
+    eprintln!("[HTTP] POST {} (non-streaming)", url);
     let response = client
         .post(&url)
         .header("Authorization", format!("Bearer {}", config.token))
         .header("Content-Type", "application/json")
-        .json(&request)
+        .json(&req)
         .send()
         .await
         .map_err(|e| e.to_string())?;
     eprintln!("[HTTP] status: {}", response.status());
     
-    let mut stream = response.bytes_stream();
-    use futures::StreamExt;
+    let body = response.text().await.map_err(|e| e.to_string())?;
+    eprintln!("[HTTP] body len: {}", body.len());
     
-    let mut buffer = String::new();
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| e.to_string())?;
-        buffer.push_str(&String::from_utf8_lossy(&chunk));
-        
-        // Parse SSE: extract data: lines
-        while let Some(line_end) = buffer.find('\n') {
-            let line = buffer[..line_end].trim().to_string();
-            buffer = buffer[line_end+1..].to_string();
-            
-            if line.starts_with("data: ") {
-                let data = &line[6..];
-                if data == "[DONE]" {
-                    window.emit("stream-chunk", "[DONE]".to_string()).map_err(|e| e.to_string())?;
-                } else if !data.is_empty() {
-                    window.emit("stream-chunk", data.to_string()).map_err(|e| e.to_string())?;
-                }
-            }
+    // Parse response and emit as stream chunks for frontend compatibility
+    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+        if let Some(content) = json["choices"][0]["message"]["content"].as_str() {
+            let escaped = content.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\\\n");
+            let chunk = format!("{{"choices":[{{"delta":{{"content":"{}"}}}}]}}", escaped);
+            window.emit("stream-chunk", chunk).map_err(|e| e.to_string())?;
         }
     }
     
+    window.emit("stream-chunk", "[DONE]".to_string()).map_err(|e| e.to_string())?;
     Ok(())
 }
 
