@@ -71,8 +71,7 @@ async fn stream_chat_message(
         buffer.push_str(&String::from_utf8_lossy(&chunk));
         
         // Parse SSE: extract data: lines
-        while let Some(line_end) = buffer.find(
-) {
+        while let Some(line_end) = buffer.find('\n') {
             let line = buffer[..line_end].trim().to_string();
             buffer = buffer[line_end+1..].to_string();
             
