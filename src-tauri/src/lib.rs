@@ -74,9 +74,10 @@ async fn stream_chat_message(
     // Parse response and emit as stream chunks for frontend compatibility
     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
         if let Some(content) = json["choices"][0]["message"]["content"].as_str() {
-            let escaped = content.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\\\n");
-            let chunk = format!("{{"choices":[{{"delta":{{"content":"{}"}}}}]}}", escaped);
-            window.emit("stream-chunk", chunk).map_err(|e| e.to_string())?;
+            let chunk_obj = serde_json::json!({
+                "choices": [{"delta": {"content": content}}]
+            });
+            window.emit("stream-chunk", chunk_obj.to_string()).map_err(|e| e.to_string())?;
         }
     }
     
