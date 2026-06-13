@@ -53,6 +53,7 @@ async fn stream_chat_message(
     let client = reqwest::Client::new();
     let url = format!("http://{}:{}/v1/chat/completions", config.host, config.port);
     
+    eprintln!("[HTTP] POST {}:{} -> {}", config.host, config.port, url);
     let response = client
         .post(&url)
         .header("Authorization", format!("Bearer {}", config.token))
@@ -61,6 +62,7 @@ async fn stream_chat_message(
         .send()
         .await
         .map_err(|e| e.to_string())?;
+    eprintln!("[HTTP] status: {}", response.status());
     
     let mut stream = response.bytes_stream();
     use futures::StreamExt;
@@ -94,12 +96,14 @@ async fn test_connection(config: ConnectionConfig) -> Result<bool, String> {
     let client = reqwest::Client::new();
     let url = format!("http://{}:{}/v1/models", config.host, config.port);
     
+    eprintln!("[HTTP] GET {} -> {}", url, url);
     let response = client
         .get(&url)
         .header("Authorization", format!("Bearer {}", config.token))
         .send()
         .await
         .map_err(|e| e.to_string())?;
+    eprintln!("[HTTP] status: {}", response.status());
     
     Ok(response.status().is_success())
 }
