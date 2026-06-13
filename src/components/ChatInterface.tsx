@@ -24,48 +24,8 @@ export default function ChatInterface({ config, onDisconnect, messages, onMessag
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
-  useEffect(() => {
-    invoke<string[]>("fetch_models", { config })
-      .then((list) => {
-        setModels(list);
-        if (list.length > 0) setCurrentModel(list[0]);
-      })
-      .catch(() => {
-        setModels(["default"]);
-        setCurrentModel("default");
-      });
-  }, [config]);
 
-  useEffect(() => {
-    const unlisten = listen<string>("stream-chunk", (event) => {
-      const chunk = event.payload;
-      if (chunk === "[DONE]") return;
-      try {
-        const data = JSON.parse(chunk);
-        if (data.choices && data.choices[0]?.delta?.content) {
-          const content = data.choices[0].delta.content;
-          const prev = messagesRef.current;
-          const lastMsg = prev[prev.length - 1];
-          if (lastMsg && lastMsg.role === "assistant") {
-            onMessagesChange([
-              ...prev.slice(0, -1),
-              { ...lastMsg, content: lastMsg.content + content },
-            ]);
-          }
-        }
-      } catch (e) {
-        console.error("Parse error:", e);
-      }
-    });
-
-    return () => {
-      unlisten.then((fn) => fn());
-    };
-  }, [onMessagesChange]);
 
   const handleSend = async (content: string) => {
     const userMessage: Message = {
