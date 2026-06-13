@@ -8,13 +8,18 @@ import MessageInput from "./MessageInput";
 interface Props {
   config: ConnectionConfig;
   onDisconnect: () => void;
+  messages: Message[];
+  onMessagesChange: (messages: Message[]) => void;
 }
 
-export default function ChatInterface({ config, onDisconnect }: Props) {
-  const [messages, setMessages] = useState<Message[]>([]);
+export default function ChatInterface({ config, onDisconnect, messages, onMessagesChange }: Props) {
   const [isLoading, setIsLoading] = useState(false);
-  const [currentModel, setCurrentModel] = useState("gpt-3.5-turbo");
+  const [models, setModels] = useState<string[]>([]);
+  const [currentModel, setCurrentModel] = useState("default");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<Message[]>(messages);
+
+  messagesRef.current = messages;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -25,22 +30,36 @@ export default function ChatInterface({ config, onDisconnect }: Props) {
   }, [messages]);
 
   useEffect(() => {
+    fetch(`${config.host}:${config.port}/v1/models`, {
+      headers: { Authorization: `Bearer ${config.token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        const list = data.data?.map((m: { id: string }) => m.id) ?? [];
+        setModels(list);
+        if (list.length > 0) setCurrentModel(list[0]);
+      })
+      .catch(() => {
+        setModels(["default"]);
+        setCurrentModel("default");
+      });
+  }, [config]);
+
+  useEffect(() => {
     const unlisten = listen<string>("stream-chunk", (event) => {
       const chunk = event.payload;
       try {
         const data = JSON.parse(chunk);
         if (data.choices && data.choices[0]?.delta?.content) {
           const content = data.choices[0].delta.content;
-          setMessages((prev) => {
-            const lastMsg = prev[prev.length - 1];
-            if (lastMsg && lastMsg.role === "assistant") {
-              return [
-                ...prev.slice(0, -1),
-                { ...lastMsg, content: lastMsg.content + content },
-              ];
-            }
-            return prev;
-          });
+          const prev = messagesRef.current;
+          const lastMsg = prev[prev.length - 1];
+          if (lastMsg && lastMsg.role === "assistant") {
+            onMessagesChange([
+              ...prev.slice(0, -1),
+              { ...lastMsg, content: lastMsg.content + content },
+            ]);
+          }
         }
       } catch (e) {
         console.error("Parse error:", e);
@@ -50,7 +69,7 @@ export default function ChatInterface({ config, onDisconnect }: Props) {
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, []);
+  }, [onMessagesChange]);
 
   const handleSend = async (content: string) => {
     const userMessage: Message = {
@@ -67,7 +86,8 @@ export default function ChatInterface({ config, onDisconnect }: Props) {
       timestamp: Date.now(),
     };
 
-    setMessages((prev) => [...prev, userMessage, assistantMessage]);
+    const updated = [...messages, userMessage, assistantMessage];
+    onMessagesChange(updated);
     setIsLoading(true);
 
     const request: ChatRequest = {
@@ -80,16 +100,14 @@ export default function ChatInterface({ config, onDisconnect }: Props) {
       await invoke("stream_chat_message", { config, request });
     } catch (e) {
       console.error("Send error:", e);
-      setMessages((prev) => {
-        const lastMsg = prev[prev.length - 1];
-        if (lastMsg && lastMsg.role === "assistant") {
-          return [
-            ...prev.slice(0, -1),
-            { ...lastMsg, content: `错误: ${e}` },
-          ];
-        }
-        return prev;
-      });
+      const prev = messagesRef.current;
+      const lastMsg = prev[prev.length - 1];
+      if (lastMsg && lastMsg.role === "assistant") {
+        onMessagesChange([
+          ...prev.slice(0, -1),
+          { ...lastMsg, content: `错误: ${e}` },
+        ]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -104,9 +122,9 @@ export default function ChatInterface({ config, onDisconnect }: Props) {
             value={currentModel}
             onChange={(e) => setCurrentModel(e.target.value)}
           >
-            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-            <option value="gpt-4">GPT-4</option>
-            <option value="gpt-4-turbo">GPT-4 Turbo</option>
+            {models.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
           </select>
           <button onClick={onDisconnect}>断开连接</button>
         </div>

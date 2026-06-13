@@ -8,7 +8,7 @@ interface Props {
 
 export default function ConnectionSettings({ onConnect }: Props) {
   const [host, setHost] = useState("192.168.1.100");
-  const [port, setPort] = useState("18789");
+  const [port, setPort] = useState("18188");
   const [token, setToken] = useState("");
   const [isTesting, setIsTesting] = useState(false);
   const [error, setError] = useState("");
