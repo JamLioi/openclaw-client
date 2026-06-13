@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { ConnectionConfig, Message, ChatRequest } from "../types";
 import { invoke } from "@tauri-apps/api/core";
 import MessageList from "./MessageList";
@@ -13,16 +13,13 @@ interface Props {
 
 export default function ChatInterface({ config, onDisconnect, messages, onMessagesChange }: Props) {
   const [isLoading, setIsLoading] = useState(false);
-  const [models, setModels] = useState<string[]>([]);
+  const [models] = useState<string[]>([]);
   const [currentModel, setCurrentModel] = useState("default");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<Message[]>(messages);
 
   messagesRef.current = messages;
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
 
 
 
