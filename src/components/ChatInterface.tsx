@@ -30,12 +30,8 @@ export default function ChatInterface({ config, onDisconnect, messages, onMessag
   }, [messages]);
 
   useEffect(() => {
-    fetch(`${config.host}:${config.port}/v1/models`, {
-      headers: { Authorization: `Bearer ${config.token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        const list = data.data?.map((m: { id: string }) => m.id) ?? [];
+    invoke<string[]>("fetch_models", { config })
+      .then((list) => {
         setModels(list);
         if (list.length > 0) setCurrentModel(list[0]);
       })

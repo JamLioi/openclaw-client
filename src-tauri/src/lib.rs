@@ -108,6 +108,27 @@ async fn test_connection(config: ConnectionConfig) -> Result<bool, String> {
     Ok(response.status().is_success())
 }
 
+
+#[tauri::command]
+async fn fetch_models(config: ConnectionConfig) -> Result<Vec<String>, String> {
+    let client = reqwest::Client::new();
+    let url = format!("http://{}:{}/v1/models", config.host, config.port);
+    
+    let response = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", config.token))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    
+    let body: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+    let models = body["data"]
+        .as_array()
+        .map(|arr| arr.iter().filter_map(|m| m["id"].as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    Ok(models)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -115,7 +136,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             send_chat_message,
             stream_chat_message,
-            test_connection
+            test_connection,
+            fetch_models
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
