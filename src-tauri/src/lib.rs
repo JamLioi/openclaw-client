@@ -120,7 +120,7 @@ async fn generate_log(config: ConnectionConfig, messages_json: String) -> Result
     let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
     
     let mut log = String::new();
-    log.push_str(&format!("=== OpenClaw Client Debug Log ===\n"));
+    log.push_str(&format!("=== OpenClaw Client Debug Log (v0.2.0) ===\n"));
     log.push_str(&format!("Time: {}\n", ts));
     log.push_str(&format!("Host: {}\n", config.host));
     log.push_str(&format!("Port: {}\n", config.port));
