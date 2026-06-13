@@ -124,6 +124,17 @@ export default function ChatInterface({ config, onDisconnect, messages, onMessag
             ))}
           </select>
           <button onClick={onDisconnect}>断开连接</button>
+        <button onClick={async () => {
+          try {
+            const msgs = JSON.stringify(messages.map(m => ({role:m.role, content:m.content.slice(0,100)})));
+            const log = await invoke<string>("generate_log", { config, messagesJson: msgs });
+            // Copy to clipboard
+            await navigator.clipboard.writeText(log);
+            alert("日志已复制到剪贴板\n\n" + log.slice(0, 500) + "...");
+          } catch(e) {
+            alert("生成日志失败: " + e);
+          }
+        }} className="btn-log">📋 日志</button>
         </div>
       </div>
       

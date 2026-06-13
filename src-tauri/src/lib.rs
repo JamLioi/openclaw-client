@@ -129,6 +129,81 @@ async fn fetch_models(config: ConnectionConfig) -> Result<Vec<String>, String> {
     Ok(models)
 }
 
+
+#[tauri::command]
+async fn generate_log(config: ConnectionConfig, messages_json: String) -> Result<String, String> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    
+    let mut log = String::new();
+    log.push_str(&format!("=== OpenClaw Client Debug Log ===\n"));
+    log.push_str(&format!("Time: {}\n", ts));
+    log.push_str(&format!("Host: {}\n", config.host));
+    log.push_str(&format!("Port: {}\n", config.port));
+    log.push_str(&format!("Token: {}...{}\n", &config.token[..4.min(config.token.len())], &config.token[config.token.len().saturating_sub(4)..]));
+    log.push_str(&format!("Token length: {}\n\n", config.token.len()));
+    
+    // Test connection
+    let client = reqwest::Client::new();
+    let url = format!("http://{}:{}/v1/models", config.host, config.port);
+    log.push_str(&format!("=== Test GET {} ===\n", url));
+    match client.get(&url).header("Authorization", format!("Bearer {}", config.token)).send().await {
+        Ok(resp) => {
+            log.push_str(&format!("Status: {}\n", resp.status()));
+            match resp.text().await {
+                Ok(body) => {
+                    if body.len() > 500 {
+                        log.push_str(&format!("Body (first 500): {}\n", &body[..500]));
+                    } else {
+                        log.push_str(&format!("Body: {}\n", body));
+                    }
+                }
+                Err(e) => log.push_str(&format!("Body read error: {}\n", e)),
+            }
+        }
+        Err(e) => log.push_str(&format!("Request error: {}\n", e)),
+    }
+    
+    // Test chat
+    let chat_url = format!("http://{}:{}/v1/chat/completions", config.host, config.port);
+    let chat_body = serde_json::json!({
+        "model": "openclaw/main",
+        "messages": [{"role": "user", "content": "say hi"}],
+        "stream": false
+    });
+    log.push_str(&format!("\n=== Test POST {} ===\n", chat_url));
+    match client.post(&chat_url)
+        .header("Authorization", format!("Bearer {}", config.token))
+        .header("Content-Type", "application/json")
+        .json(&chat_body)
+        .send()
+        .await {
+        Ok(resp) => {
+            log.push_str(&format!("Status: {}\n", resp.status()));
+            match resp.text().await {
+                Ok(body) => {
+                    if body.len() > 500 {
+                        log.push_str(&format!("Body (first 500): {}\n", &body[..500]));
+                    } else {
+                        log.push_str(&format!("Body: {}\n", body));
+                    }
+                }
+                Err(e) => log.push_str(&format!("Body read error: {}\n", e)),
+            }
+        }
+        Err(e) => log.push_str(&format!("Request error: {}\n", e)),
+    }
+    
+    log.push_str(&format!("\n=== Messages ({}) ===\n", messages_json.len()));
+    if messages_json.len() > 2000 {
+        log.push_str(&format!("{}\n", &messages_json[..2000]));
+    } else {
+        log.push_str(&format!("{}\n", messages_json));
+    }
+    
+    Ok(log)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -137,7 +212,8 @@ pub fn run() {
             send_chat_message,
             stream_chat_message,
             test_connection,
-            fetch_models
+            fetch_models,
+            generate_log
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -353,3 +353,4 @@ button:disabled {
 .btn-delete { position: absolute; right: 8px; top: 10px; background: none; border: none; color: #666; cursor: pointer; font-size: 16px; }
 .btn-delete:hover { color: #e74c3c; }
 .no-session { flex: 1; display: flex; align-items: center; justify-content: center; color: #888; }
+.btn-log { background: #555; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 4px; } .btn-log:hover { background: #777; }
