@@ -67,16 +67,8 @@ async fn stream_chat_message(
     let body = response.text().await.map_err(|e| e.to_string())?;
     
     let json: serde_json::Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
-    let content = json["choices"][0]["message"]["content"]
-        .as_str()
-        .unwrap_or("")
-        .to_string();
-    
-    if content.is_empty() {
-        return Ok(format!("DEBUG: model={}, body={}", json.get("model").unwrap_or(&serde_json::Value::Null), body));
-    }
-    
-    Ok(content)
+    // Return full body for debugging
+    Ok(body)
 }
 
 #[tauri::command]
