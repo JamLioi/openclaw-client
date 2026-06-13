@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { ConnectionConfig, Message, ChatRequest } from "../types";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
 

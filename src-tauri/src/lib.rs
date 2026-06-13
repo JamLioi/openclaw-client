@@ -48,16 +48,13 @@ async fn send_chat_message(
 async fn stream_chat_message(
     config: ConnectionConfig,
     request: ChatRequest,
-    window: tauri::Window,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let client = reqwest::Client::new();
     let url = format!("http://{}:{}/v1/chat/completions", config.host, config.port);
     
-    // Force non-streaming for reliability
-    let mut req = request.clone();
+    let mut req = request;
     req.stream = false;
     
-    eprintln!("[HTTP] POST {} (non-streaming)", url);
     let response = client
         .post(&url)
         .header("Authorization", format!("Bearer {}", config.token))
@@ -66,23 +63,16 @@ async fn stream_chat_message(
         .send()
         .await
         .map_err(|e| e.to_string())?;
-    eprintln!("[HTTP] status: {}", response.status());
     
     let body = response.text().await.map_err(|e| e.to_string())?;
-    eprintln!("[HTTP] body len: {}", body.len());
     
-    // Parse response and emit as stream chunks for frontend compatibility
-    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
-        if let Some(content) = json["choices"][0]["message"]["content"].as_str() {
-            let chunk_obj = serde_json::json!({
-                "choices": [{"delta": {"content": content}}]
-            });
-            window.emit("stream-chunk", chunk_obj.to_string()).map_err(|e| e.to_string())?;
-        }
-    }
+    let json: serde_json::Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
+    let content = json["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
     
-    window.emit("stream-chunk", "[DONE]".to_string()).map_err(|e| e.to_string())?;
-    Ok(())
+    Ok(content)
 }
 
 #[tauri::command]
