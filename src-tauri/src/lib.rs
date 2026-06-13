@@ -72,6 +72,10 @@ async fn stream_chat_message(
         .unwrap_or("")
         .to_string();
     
+    if content.is_empty() {
+        return Ok(format!("DEBUG: model={}, body={}", json.get("model").unwrap_or(&serde_json::Value::Null), body));
+    }
+    
     Ok(content)
 }
 
