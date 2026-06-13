@@ -48,6 +48,7 @@ export default function ChatInterface({ config, onDisconnect, messages, onMessag
   useEffect(() => {
     const unlisten = listen<string>("stream-chunk", (event) => {
       const chunk = event.payload;
+      if (chunk === "[DONE]") return;
       try {
         const data = JSON.parse(chunk);
         if (data.choices && data.choices[0]?.delta?.content) {

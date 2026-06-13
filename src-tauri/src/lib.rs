@@ -65,10 +65,26 @@ async fn stream_chat_message(
     let mut stream = response.bytes_stream();
     use futures::StreamExt;
     
+    let mut buffer = String::new();
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| e.to_string())?;
-        let text = String::from_utf8_lossy(&chunk);
-        window.emit("stream-chunk", text.to_string()).map_err(|e| e.to_string())?;
+        buffer.push_str(&String::from_utf8_lossy(&chunk));
+        
+        // Parse SSE: extract data: lines
+        while let Some(line_end) = buffer.find(
+) {
+            let line = buffer[..line_end].trim().to_string();
+            buffer = buffer[line_end+1..].to_string();
+            
+            if line.starts_with("data: ") {
+                let data = &line[6..];
+                if data == "[DONE]" {
+                    window.emit("stream-chunk", "[DONE]".to_string()).map_err(|e| e.to_string())?;
+                } else if !data.is_empty() {
+                    window.emit("stream-chunk", data.to_string()).map_err(|e| e.to_string())?;
+                }
+            }
+        }
     }
     
     Ok(())
