@@ -50,7 +50,12 @@ export default function ChatInterface({ config, onDisconnect, messages, onMessag
     };
 
     try {
-      await invoke("stream_chat_message", { config, request });
+      const content = await invoke<string>("stream_chat_message", { config, request });
+      const prev = messagesRef.current;
+      const lastMsg = prev[prev.length - 1];
+      if (lastMsg && lastMsg.role === "assistant") {
+        onMessagesChange([...prev.slice(0, -1), { ...lastMsg, content: content || "(空回复)" }]);
+      }
     } catch (e) {
       console.error("Send error:", e);
       const prev = messagesRef.current;
